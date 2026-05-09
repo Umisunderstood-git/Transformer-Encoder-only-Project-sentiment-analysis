@@ -1,0 +1,229 @@
+#Using encoder only architecture we are going to do sentiment analysis
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers
+from tensorflow.keras import Sequential 
+import numpy as np
+
+
+#########################################################################################
+#Dataset
+#########################################################################################
+
+
+sentences = [
+    "this course is very good",
+    "i like this session",
+    "transformer concept is excellent",
+    "teaching is very clear",
+    "this class is helpful",
+    "i enjoyed the lecture",
+    "this lecture is excellent",
+    "session was"
+    " very useful"
+    "",
+    "this topic is interesting",
+    "i understood the concept",
+    "teacher explained very well",
+    "this course is amazing",
+
+    "this course is boring",
+    "i did not understand",
+    "session was confusing",
+    "teaching is not clear",
+    "this class is difficult",
+    "i did not like the lecture",
+    "this topic is hard",
+    "lecture was not useful",
+    "i am confused",
+    "teacher did not explain well",
+    "this session is bad",
+    "course was difficult"
+]
+
+labels = np.array([
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+])
+
+print("This is how the data looks like : ")
+
+for sentence,label in zip(sentences,labels):
+    if label==1:
+        print(f"{sentence}:{label} ==> Positive")
+    else:
+        print(f"{sentence}:{label} ==> Negative")
+
+
+length=0
+
+for i in sentences:
+    tempList=i.split()
+    if length<len(tempList):
+        length=len(tempList)
+    else:
+        pass
+
+
+print("Maximum words in your sentence is : ",length)
+
+sequence_length=8 
+
+tokenization=layers.TextVectorization(
+    max_tokens=1000,
+    output_sequence_length=sequence_length
+
+)
+
+tokenization.adapt(sentences) ## This is the object declaration. Here it just learns from the vocab and assigns token to each unique words
+
+tokenized_data=tokenization(sentences) # Here it does the conversion of each word with its adapted token 
+
+
+
+
+
+######Embedding layer: Manual
+
+#Embedding the positions
+positions=tf.range(start=0, limit=sequence_length,delta=1)
+print(positions)
+position_embeds=layers.Embedding(input_dim=8, output_dim=16)
+position_embeds_output=position_embeds(positions)
+print("Position embeds are: ", position_embeds)
+print("Shape of Position embeds are: ", position_embeds_output.shape)
+
+#Embedding the input data
+
+tokens_embed=layers.Embedding(input_dim=1000,output_dim=16) #input_dim looks at the 1000 tokens as 1,2,3,4. We give 1000 to be safe by assumin maximum unique words it will see in the entire data is 1000
+token_embeds_output=tokens_embed(tokenized_data)
+print("Shape of token embedding is: ", token_embeds_output.shape)
+
+
+
+#Positional embedding= token embeds + Positional embeds
+
+Positional_embeding=token_embeds_output+position_embeds_output
+print("Shape of final positional embeds output is : ", Positional_embeding.shape)
+
+
+##Now this will just be our data which we will pass to transformer model while the fit
+#Now we need to build the transformer layers from scratch 
+
+
+#Here we create a imaginary input layer matrix like the shape of our data using the input layer
+
+
+input_layer=layers.Input(shape=(8,16))
+print(input_layer)
+
+#In 24x8x16 24 is the number of sequences in data set, they call it batch size, 
+# we dont specify that in our iput layer, keras input layer assumes that 8x16 is going to be repeated
+
+
+
+attention_layer=layers.MultiHeadAttention(num_heads=2,
+                                          key_dim=16)
+
+attention_output=attention_layer(query=input_layer,key=input_layer,value=input_layer)
+print("Shape of output layer output is: ", attention_output.shape)
+#Key dimension here determines what wil be the output of the attention layer matrix.
+# basically it determines the shape of Wq,Wv and Wk matrices to control the shape of layers output
+
+#Here i took it 16 so that i could retain my original token embedding dimensions
+
+
+
+
+# Step: Residual connection addition and layer normalization
+X=layers.Add()([attention_output,input_layer])
+X=layers.LayerNormalization()(X)
+
+
+
+##Feed forward neural network 
+
+
+ffn=tf.keras.Sequential([
+    layers.Dense(units=16,activation="relu"),
+    layers.Dense(16)
+])
+
+ffn_output=ffn(X)
+
+
+#Again Add and normalization
+X=layers.Add()([ffn_output,X])
+X=layers.LayerNormalization()(X)
+X=layers.Dropout(0.2)(X)
+
+print("Shape of our input layer matrix after passing attention layer, normalization, and ffn :  ",X.shape)
+
+#Now flattening the data 
+X=layers.GlobalAveragePooling1D()(X)
+
+print("Shape after Gloabal average 1d pooling: ",X.shape)
+#(None,16) will be the shape. Here each sequence will become just 16 number vector, so with 
+# batch size 24 the shape will be 24X8X16
+
+
+
+##Final  classification head for sentiment analysis
+
+
+X=layers.Dense(32,activation="relu")(X)
+#X=layers.Dropout(0.2)(X)
+Output=layers.Dense(1,activation="sigmoid")(X)
+
+#Now compile the all these encoder intended layers into a single mode
+
+model=tf.keras.Model(inputs=input_layer,outputs=Output)
+
+model.compile(
+    optimizer="adam",
+    loss="binary_crossentropy",
+    metrics=["accuracy"]
+
+)
+
+print("See the model summary below : ")
+print(model.summary())
+
+
+
+
+##Test data
+Test_sentence=["course was very boring"]
+Test_sentence_token=tokenization(Test_sentence)
+
+print("Sentence tokenized is : ",Test_sentence_token)
+Test_embeds=tokens_embed(Test_sentence_token)
+###############################Training the model
+model.fit(Positional_embeding,labels,epochs=300)
+
+prediction=model.predict(Test_embeds)
+
+
+
+
+
+#Display results
+border="="*50
+
+print(border)
+print("Test outputs")
+print(border)
+
+print("Test sentence: ")
+print(Test_sentence)
+
+print("Embeds of test sentence: ")
+print(Test_embeds)
+
+
+print("Model prediction was: ",prediction)
+if prediction>=0.5:
+    print("Transformer encoder predicted it as a positive sentiment")
+else:
+    print("Transformer encoder predicted it as a Negative sentiment")
