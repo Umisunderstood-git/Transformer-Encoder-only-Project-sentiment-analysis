@@ -68,3 +68,53 @@ Adding the positional embeds token embeds makes a transformer model understand t
 
 
    
+
+
+5) Making an imaginary matrix for transformer: We make a representative matrix using, 
+input_layer=layers.Input(shape=(8,16))
+the reason is when we declare all the layers for transformer and then compile them using a model.compile, here the keras expects a representational matrix shape for reference.
+The most important part is that the model.compile needs to see a the shape of features and not the entire dataset to determine the weights and bias.
+so here our dataset has shape 24,8,16, input matrix for 1 forward pass will be 1 sequence at the time offit, so we declare a input matrix of shape 8x16. When we compile our layers, keras looks at the shape of the matrix we declared at each layer and determines the weight and bias shapes.
+
+
+6) Passing this to multihead attention layer: here we will pass the input matrix through multihead attention, 
+attention_layer=layers.MultiHeadAttention(num_heads=2,
+                                          key_dim=16)
+   num_heads means the number of multihead attention layers
+   key_dim=16 actually determines the output of the attention layer by determining the shape of weight matrices(Here we want our originzal token dimension 16 to be maintained at the output of multihead attention)
+   then,
+   attention_output=attention_layer(query=input_layer,key=input_layer,value=input_layer)
+   this gets the attention layer output in a variable. We give all the q,k,v value as our input matrix.
+
+
+7) Passing it to addition for residual addition
+8) Passig it through the normalization step
+
+9) Declaring a feed forward neural network (to just add non linearity):
+      here we just declare two dense layers.Note this FFN doesnt backward propogate on as a standalone, It back propogates at with all the layers in the transformer encoder model.
+      Mutihead attention layer and all the previos steps were sort of linear calculations, so here FFN adds non-linearity. Here the model learns better features in the attenion word matrices
+NOTE: Here FFN take all the vector embeds for each token, it cannot. As we know FFN needs 1d data as a input layer. So here it will go in each tokens vector embeddings and that will be its forward pass. This means it will go in 1 tokens embedding, inside it there are 16 numbers because our  input matrix is of shape 8,16. SO it will take all those 16 numbers in the forward pass. 
+
+10) Passing it to addition for residual addition
+11) Passig it through the normalization step and dropout
+
+
+12) Passing it through global average pooling 1D:
+    So reason this exists is the next layer we are going to put is a ffn that will have a output layer to predict 1 or 0 using sigmoid activation function (We have a binary case study)
+    till this step our input matrix dimensions are 1,8,16. This is a 3 dimensional array. Dense layer to produce ouput would need flatenning of this data. SO we flatten it in 1D using global average pooling
+
+
+13) Declaring a classification head for sentiment analysis  (2 layers- 1  forward pass using relu and other one is sigmoid for binary classification):
+This layer is not officially a part of transformer architecture. We did here because our case study is of binary classification and therefore we need to take the final output matrix in the encoder to flatten and a ffn layer with sigmoid as a output layer neuron activation function to predict 1 or 0
+
+
+
+14) Compiling the model by showing it how  the input layer looks now and the original one
+    using: model=tf.keras.Model(inputs=input_layer,outputs=Output), here we show keras how our dimensions looked at when we declared a representational input layer matrix and output is our output coming from the final ffn layer. Keras.model understands all the steps/transformer layer that input_layer matrix went through and formed a transformer model for us. What it actually did is initializing the weights and biases in the layers and anticipating for the input data
+
+
+15) Training the model with the position embeded matrix:
+    train the model using fit
+
+16)Testing the data by creating a sentence getting it tokenized & embeded using the same embed object
+Now you will need to tokenize and embed and positionally embed  test sentence using same embeding object and tokenization object that you use earlier. Because you would want to have the same tokens created from the tokens you adapted on from the training datset
