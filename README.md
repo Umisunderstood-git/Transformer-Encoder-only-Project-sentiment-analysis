@@ -63,7 +63,7 @@ Positional embdeddings= token_embeddings + embeded_positions
 
 Adding the positional embeds token embeds makes a transformer model understand the position of each word in the incoming sequence. Since transformer takes entire sequence for forward pass and doest see 1 word by other like RNN and LSTM we need to positionally embed it
 
-   How does adding positional embeds and token embeds giving positional significance to each toke, because ultimately model is just going to see a 3d tensor for training? (Imp concept)
+   How does adding positional embeds and token embeds giving positional significance to each token, because ultimately model is just going to see a 3d tensor for training? (Imp concept)
    Its because when we add positional vectors, we just slightly nudge the og token embeds,Transformer model in high dimensional space when word is repeated a lot many times, sees this vector and understands the og word and the added positional embeds inside it, and thus decide its attention.
 
 
