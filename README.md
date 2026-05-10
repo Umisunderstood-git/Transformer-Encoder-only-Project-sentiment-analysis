@@ -38,4 +38,33 @@ Understanding each step in depth
    Here we have 24 sentences. By going through the data I saw that the sentence with most words is not more than 5.
    AI/ML book recommends that we take at least 30 percent of the longest sentence as our maximum length, so we considered sequence_length=8
 
+Use of layers.TextVectorization(): This allows us to form a object that we can use to adapt on our dataset
+here the parameter max_tokens is the number of unique tokens the data will have. I have taken 1000 here to be safe. Flow of this object -> it tokenizes the unique word, but if number of unique tokens go beyond the max_tokens then it throws a error
+
+
+2) Input sentence tokenization and embedding
+   we embed the data tokens using layers.Embedding
+   , we chose input dimension 1000 because of the same reason. Its the maximum unique tokens it will see       in the data set. We gave output_dim =16, this means that output of each token should be a 16 dimension     vector. eg 4 -> [0.1,0.2,0.7,0.6..........0.7], len(4)=16. Understand the shape of the data after embedding
+
+   Shape of the data before embedding: 24 sentences (batch size=24)
+   maximum word length in a sentence=8
+   so our data after tokenization looks like 24,8
+   after embedding each token expands into a 16 dimension vector, so for 1 word there is a 16 dimension vector, so 24 is the batch size, 8 words in a single sentence and 16 dimensional vector for each word, sp data looks like (24,8,16).
+Here (1,8,16) will be first sentence, (2,8,16) will be second sentence.  
+   
+
+4) Literal position number tensors:
+   forming a literal tensor with position numbers, why? we will take embeds of this to add with our token numbers
+   here since there are max 8 positions, so we will just be taking input_dim=8. 
+   Since our goal is to directly add the this positional embeds to our token embeds, we would want the shape similar to token embeds. 1 sentence token embed shape again is (1,8,16), so we give input_dim=8 and output_dim=16 for our positional embeds and thus our positional embeds output shape becomes (1,8,16)
+
+
+Positional embdeddings= token_embeddings + embeded_positions
+
+Adding the positional embeds token embeds makes a transformer model understand the position of each word in the incoming sequence. Since transformer takes entire sequence for forward pass and doest see 1 word by other like RNN and LSTM we need to positionally embed it
+
+   How does adding positional embeds and token embeds giving positional significance to each toke, because ultimately model is just going to see a 3d tensor for training? (Imp concept)
+   Its because when we add positional vectors, we just slightly nudge the og token embeds,Transformer model in high dimensional space when word is repeated a lot many times, sees this vector and understands the og word and the added positional embeds inside it, and thus decide its attention.
+
+
    
